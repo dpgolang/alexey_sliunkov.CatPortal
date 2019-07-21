@@ -9,4 +9,12 @@ type Animal struct{
 	Description string `json:description`
 }
 
+type User struct {
+	Id          int     `json:id`
+	Firstname   string  `json:firstname,omitempty`
+	Lastname    string  `json:lastname,omitempty`
+	Password 	string `json:password,omitempty`
+}
+
+
 

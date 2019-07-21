@@ -8,6 +8,8 @@ import (
 
 type CatRepository struct {}
 
+type UserRepository struct{}
+
 func logFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -65,4 +67,19 @@ func (ca CatRepository) RemoveAnimal(db *sql.DB,id int) int64{
 	logFatal(err)
 
 	return rowsDeleted
+}
+
+func (u UserRepository) Signup(db *sql.DB, user model.User) int {
+	err := db.QueryRow("insert into public.users (id,firstname,lastname,password) values ($1,$2,$3,$4) RETURNING id;",
+		user.Id, user.Firstname, user.Lastname, user.Password).Scan(&user.Id)
+	logFatal(err)
+	return user.Id
+}
+func (u UserRepository) Signin(db *sql.DB, userСhecking model.User, userFromBase model.User) (string, bool) {
+	err := db.QueryRow("select password from public.users where id=$1", userСhecking.Id).Scan(&userFromBase.Password)
+	if err == sql.ErrNoRows {
+		return "", false
+	}
+	logFatal(err)
+	return userFromBase.Password, true
 }
