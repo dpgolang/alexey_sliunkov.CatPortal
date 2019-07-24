@@ -15,6 +15,11 @@ type User struct {
 	Lastname    string  `json:lastname,omitempty`
 	Password 	string `json:password,omitempty`
 }
-
+type Food struct{
+	Id	int     `json:id`
+	Name   string  `json:name`
+	Price    string  `json:price`
+	Composition 	string `json:composition`
+}
 
 

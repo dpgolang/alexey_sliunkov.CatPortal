@@ -1,8 +1,8 @@
 package driver
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"log"
 )
 
@@ -14,7 +14,7 @@ const (
 	dbname   = "postgres"
 )
 
-var db *sql.DB
+var db *sqlx.DB
 
 func logFatal(err error) {
 	if err != nil {
@@ -22,14 +22,14 @@ func logFatal(err error) {
 	}
 }
 
-func ConnectDB() *sql.DB {
+func ConnectDB() *sqlx.DB {
 	var err error
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = sqlx.Open("postgres", psqlInfo)
 	logFatal(err)
 
 	err = db.Ping()

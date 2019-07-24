@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"net/http"
 	"project/model"
@@ -18,6 +18,8 @@ type Controller struct{}
 
 var cats []model.Animal
 
+var goods []model.Food
+
 func logFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -25,12 +27,11 @@ func logFatal(err error) {
 }
 
 var (
-	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
 	key   = []byte("super-secret-key")
 	store = sessions.NewCookieStore(key)
 )
 
-func (c Controller) GetAnimals(db *sql.DB) http.HandlerFunc{
+func (c Controller) GetAnimals(db *sqlx.DB) http.HandlerFunc{
 	return func (w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 
@@ -48,7 +49,7 @@ func (c Controller) GetAnimals(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) GetAnimal(db *sql.DB) http.HandlerFunc{
+func (c Controller) GetAnimal(db *sqlx.DB) http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
@@ -68,7 +69,7 @@ func (c Controller) GetAnimal(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) AddAnimal(db *sql.DB) http.HandlerFunc{
+func (c Controller) AddAnimal(db *sqlx.DB) http.HandlerFunc{
 	return func (w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
@@ -85,7 +86,7 @@ func (c Controller) AddAnimal(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) UpdateAnimal(db *sql.DB) http.HandlerFunc{
+func (c Controller) UpdateAnimal(db *sqlx.DB) http.HandlerFunc{
 	return func (w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
@@ -101,7 +102,7 @@ func (c Controller) UpdateAnimal(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) RemoveAnimal(db *sql.DB) http.HandlerFunc{
+func (c Controller) RemoveAnimal(db *sqlx.DB) http.HandlerFunc{
 	return func (w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
@@ -120,7 +121,7 @@ func (c Controller) RemoveAnimal(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) Signup(db *sql.DB) http.HandlerFunc {
+func (c Controller) Signup(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user model.User
 		var userID int
@@ -139,7 +140,7 @@ func (c Controller) Signup(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func (c Controller) Signin(db *sql.DB) http.HandlerFunc {
+func (c Controller) Signin(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, "cookie-name")
 		session.Options.MaxAge = 300
@@ -159,12 +160,12 @@ func (c Controller) Signin(db *sql.DB) http.HandlerFunc {
 			}
 			session.Values["authenticated"] = true
 			session.Save(r, w)
-			json.NewEncoder(w).Encode(fmt.Sprintf("logged in, id: %d",userChecking.Id))
+			json.NewEncoder(w).Encode(fmt.Sprintf("welcome user, id: %d",userChecking.Id))
 		}
 	}
 }
 
-func (c Controller) SignAdmin(db *sql.DB) http.HandlerFunc {
+func (c Controller) SignAdmin(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, "cookie-name")
 		session.Options.MaxAge = 300
@@ -190,7 +191,7 @@ func (c Controller) SignAdmin(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func (c Controller) GetAnimalsAdmin(db *sql.DB) http.HandlerFunc{
+func (c Controller) GetAnimalsAdmin(db *sqlx.DB) http.HandlerFunc{
 	return func (w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
@@ -207,7 +208,7 @@ func (c Controller) GetAnimalsAdmin(db *sql.DB) http.HandlerFunc{
 	}
 }
 
-func (c Controller) GetAnimalAdmin(db *sql.DB) http.HandlerFunc{
+func (c Controller) GetAnimalAdmin(db *sqlx.DB) http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request){
 		session, _ := store.Get(r, "cookie-name")
 		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
@@ -227,7 +228,117 @@ func (c Controller) GetAnimalAdmin(db *sql.DB) http.HandlerFunc{
 	}
 }
 
+func (c Controller) GetMeals(db *sqlx.DB) http.HandlerFunc{
+	return func (w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
 
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var food model.Food
+		goods = []model.Food{}
+		foodrepo := repository.FoodRepository{}
+
+		goods = foodrepo.GetMeals(db,food,goods)
+
+		json.NewEncoder(w).Encode(goods)
+	}
+}
+
+func (c Controller) GetMeal(db *sqlx.DB) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var food model.Food
+		params := mux.Vars(r)
+		goods = []model.Food{}
+		foodrepo := repository.FoodRepository{}
+
+		id,err:= strconv.Atoi(params["id"])
+		logFatal(err)
+
+		food = foodrepo.GetMeal(db,food,id)
+		json.NewEncoder(w).Encode(food)
+	}
+}
+
+func (c Controller) AddMeal(db *sqlx.DB) http.HandlerFunc{
+	return func (w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
+		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var food model.Food
+		var mealID int
+		json.NewDecoder(r.Body).Decode(&food)
+
+		foodrepo := repository.FoodRepository{}
+		mealID = foodrepo.AddMeal(db,food)
+		json.NewEncoder(w).Encode(mealID)
+	}
+}
+
+func (c Controller) RemoveMeal(db *sqlx.DB) http.HandlerFunc{
+	return func (w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
+		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		params := mux.Vars(r)
+
+		foodrepo := repository.FoodRepository{}
+
+		id,err := strconv.Atoi(params["id"])
+		logFatal(err)
+		rowsDeleted := foodrepo.RemoveMeal(db,id)
+
+		json.NewEncoder(w).Encode(rowsDeleted)
+	}
+}
+
+func (c Controller) GetMealsAdmin(db *sqlx.DB) http.HandlerFunc{
+	return func (w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
+
+		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var food model.Food
+		goods = []model.Food{}
+		foodrepo := repository.FoodRepository{}
+
+		goods = foodrepo.GetMeals(db,food,goods)
+
+		json.NewEncoder(w).Encode(goods)
+	}
+}
+
+func (c Controller) GetMealAdmin(db *sqlx.DB) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		session, _ := store.Get(r, "cookie-name")
+		if auth, ok := session.Values["admin"].(bool); !ok || !auth {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var food model.Food
+		params := mux.Vars(r)
+		goods = []model.Food{}
+		foodrepo := repository.FoodRepository{}
+
+		id,err:= strconv.Atoi(params["id"])
+		logFatal(err)
+
+		food = foodrepo.GetMeal(db,food,id)
+		json.NewEncoder(w).Encode(food)
+	}
+}
 
 
 
